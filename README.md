@@ -1,3 +1,3 @@
 # spring-sample-projects
-Sample sprinsdfsg based projects 
+Sample spring based projects 
 asd
