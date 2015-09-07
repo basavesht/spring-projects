@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans:beans xmlns:beans="http://www.springframework.org/schema/beans"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+        xmlns:batch="http://www.springframework.org/schema/batch"
+        xmlns:p="http://www.springframework.org/schema/p"
+        xsi:schemaLocation="
+          http://www.springframework.org/schema/batch http://www.springframework.org/schema/batch/spring-batch-2.2.xsd
+          http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.2.xsd">
+
+        <beans:description>Job configuration for a Spring Batch application
+        </beans:description>
+
+        <batch:job id="userTaskJob" job-repository="jobRepository">
+                <batch:step id="step1">
+                        <batch:tasklet transaction-manager="transactionManager">
+                                <batch:chunk reader="userTaskItemReader" 
+                                			 processor="userTaskItemProcessor"
+                                        	 writer="userTaskRetryItemWriter" 
+                                        	 commit-interval="${step1.commit.interval}"  
+                                        	 retry-limit="${step1.retry.limit}" >
+                                        <batch:retryable-exception-classes>
+                                                                <batch:include class="org.springframework.dao.DeadlockLoserDataAccessException"/>
+                                        </batch:retryable-exception-classes>        
+                                </batch:chunk>
+                                <batch:listeners>
+                            	    <batch:listener after-step-method="afterStep" ref="noWorkFoundStepExecutionListener">
+                                 	 </batch:listener>
+                                </batch:listeners>
+                        </batch:tasklet>
+                        <batch:fail on="FAILED" />
+                        <batch:end on="*" />
+                </batch:step>
+        </batch:job>
+        
+        <!-- Reference types for different filters -->
+        <beans:bean id="noWorkFoundStepExecutionListener" class="com.abhi.spring.batch.NoWorkFoundStepExecutionListener"></beans:bean>
+
+        <!--   1. Setting the backOffPolicy will wait 1 seconds (1000 milliseconds) before the initial retry.
+               2. Subsequent attempts will double that value (the growth is influenced by the multiplier).
+               3. It’ll continue until the maxInterval is met -->
+        <beans:bean id="retryTemplate" class="org.springframework.retry.support.RetryTemplate">
+                <beans:property name="backOffPolicy">
+                        <beans:bean class="org.springframework.retry.backoff.ExponentialBackOffPolicy"
+                                p:initialInterval="1000" p:maxInterval="10000" p:multiplier="2" />
+                </beans:property>
+        </beans:bean>
+
+</beans:beans>
